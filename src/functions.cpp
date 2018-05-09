@@ -70,13 +70,13 @@ namespace SecureML
 		for (i = 0; i < factorDim; ++i) {
 			m = 0.0;
 			for (j = 0; j < sampleDim; ++j) {
-				m = max(m, abs(zData[j][i]));
+				//m = max(m, abs(zData[j][i]));
+				if(m < abs(zData[j][i])) m = abs(zData[j][i]);
 			}
-
-			if(m < 1e-10) continue;
-
-			for (j = 0; j < sampleDim; ++j) {
-				zData[j][i] /= m;
+			if(m > 1e-10) {
+				for (j = 0; j < sampleDim; ++j) {
+					zData[j][i] = zData[j][i] / m;
+				}
 			}
 		}
 	}
@@ -119,6 +119,10 @@ namespace SecureML
 		long sampleNum;
 		long factorNum;
 		double** zData = zDataFromFile(path, factorNum, sampleNum, isfirst);
+		
+		cout << "path = " << path << endl;
+		cout << "factorNUm(test) = " << factorNum << endl;
+		cout << "sampleNum(test) = " << sampleNum << endl;
 
 		cout << "wData = [";
 		for(long i = 0; i < 10; i++) {
@@ -127,30 +131,30 @@ namespace SecureML
 		}
 
 		long TN = 0, FP = 0;
-	    vector<double> thetaTN;
-	    vector<double> thetaFP;
+		vector<double> thetaTN;
+		vector<double> thetaFP;
 
-	    for(int i = 0; i < sampleNum; ++i){
-	        if(zData[i][0] > 0) {
-	            if(innerproduct(zData[i], wData, factorNum) < 0) TN++;
-	            thetaTN.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
-	        } else {
-	            if(innerproduct(zData[i], wData, factorNum) < 0) FP++;
-	            thetaFP.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
-	        }
-	    }
-	    if(thetaFP.size() == 0 || thetaTN.size() == 0) {
+	    	for(long i = 0; i < sampleNum; ++i){
+	        	if(zData[i][0] > 0) {
+	            		if(innerproduct(zData[i], wData, factorNum) < 0){ TN++; }
+	            		thetaTN.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
+	        	} else {
+		            	if(innerproduct(zData[i], wData, factorNum) < 0){ FP++; }
+	        	    	thetaFP.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
+	        	}
+	    	}
+	    	if(thetaFP.size() == 0 || thetaTN.size() == 0) {
 	        cout << "n_test_yi = 0 : cannot compute AUC" << endl;
-	    } else{
-	        double auc = 0.0;
-	        for(long i = 0; i < thetaTN.size(); ++i){
-	            for(long j = 0; j < thetaFP.size(); ++j){
-	                if(thetaFP[j] <= thetaTN[i]) auc++;
-	            }
-	        }
-	        auc /= thetaTN.size() * thetaFP.size();
-	        cout << "AUC: " << auc << endl;
-	    }
+	    	} else{
+	        	double auc = 0.0;
+	        	for(long i = 0; i < thetaTN.size(); ++i){
+	            	for(long j = 0; j < thetaFP.size(); ++j){
+	                	if(thetaFP[j] <= thetaTN[i]) auc++;
+	            	}
+	        	}
+	        	auc /= thetaTN.size() * thetaFP.size();
+	        	cout << "AUC: " << auc << endl;
+	    	}
 	}
 	/****************************************************************************/
 }

@@ -64,7 +64,7 @@ namespace SecureML {
 			// Compute logQBoot for bootstrapping //
 			logq = wBits + 5;
 			logI = 4; logT = 4;
-			long bitForBoot = logN + (logI + logT + 5) * logq + (logI + logT + 6) * logI + logT + logq + 20;
+			long bitForBoot = 32 + (logI + logT + 5) * logq + (logI + logT + 6) * logI + logT + logq + 4;
 			logQBoot = logQ + bitForBoot;
 
 			// Compute proper logN for security parameter 80-bit //

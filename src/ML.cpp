@@ -77,7 +77,7 @@ namespace SecureML
 							}
 						}
 						Ciphertext encZData = scheme.encrypt(pzData, params.slots, params.wBits, params.logQ);
-						SerializationUtils::writeCiphertext(encZData, "encData/Ciphertext_" + std::to_string(i + 1) + "_" + std::to_string(j + 1) + ".txt");
+						SerializationUtils::writeCiphertext(encZData, "../encData/Ciphertext_" + std::to_string(i + 1) + "_" + std::to_string(j + 1) + ".txt");
 						delete[] pzData;
 					}
 				}
@@ -104,7 +104,8 @@ namespace SecureML
 			// 2. Read txt file and convert it to Ciphertext class
 			Ciphertext* encZData = new Ciphertext[params.cnum]; //> wBits
 			for(long i = 0; i < params.cnum; i++) {
-				encZData[i] = SerializationUtils::readCiphertext("encData/Ciphertext_" + std::to_string(blockID + 1) + "_" + std::to_string(i + 1) + ".txt");
+				encZData[i] = SerializationUtils::readCiphertext("../encData/Ciphertext_" + std::to_string(blockID + 1) + "_" + std::to_string(i + 1) + ".txt");
+				DecryptAndPrint("encZData_"+to_string(i+1), encZData[i]);
 			}
 
 			// 3. Update encWData and encVData (based on encZData)
@@ -148,7 +149,8 @@ namespace SecureML
 	/****************************************************************************/
 	void ML::Training(Ciphertext* encWData, long factorNum) {
 		chrono::high_resolution_clock::time_point t1, t2;
-
+		
+		string FILE("../data/MIMIC.csv");
 		double gamma, eta;
 		double alpha0, alpha1;
 
@@ -175,7 +177,7 @@ namespace SecureML
 
 			double* dwData = new double[factorNum];
 			DecryptwData(dwData, encWData, factorNum);
-			SecureML::testAUROC("data/MIMIC.csv", dwData);
+			SecureML::testAUROC(FILE, dwData);
 
 			alpha0 = alpha1;
 			alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
@@ -201,7 +203,7 @@ namespace SecureML
 				end(); print("bootstrapping");
 				cout << "Bootstrapping END!!!" << endl;
 				DecryptwData(dwData, encWData, factorNum);
-				SecureML::testAUROC("data/MIMIC.csv", dwData);
+				SecureML::testAUROC(FILE, dwData);
 			}
 			delete[] dwData;
 		}
@@ -233,6 +235,4 @@ namespace SecureML
 		cout << endl;
 	}
 }
-
-
 

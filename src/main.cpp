@@ -31,16 +31,28 @@ int main() {
 	/* Read Data file and shuffle and normalize it
 	 * */
 	long factorNum, sampleNum;
-	string FILE("data/MIMIC.csv");
+	string FILE("../data/MIMIC.csv");
 	double** zData = SecureML::zDataFromFile(FILE, factorNum, sampleNum);
+
 	SecureML::shuffleZData(zData, factorNum, sampleNum);
+	
+	cout << "zData(shuffle) = ";
+	for(long i = 0; i < factorNum; i++) {cout << zData[1][i] << " ";}
+	cout << endl; cin.ignore();
+
 	SecureML::normalizeZData(zData, factorNum, sampleNum);
+
+	cout << factorNum << ", " << sampleNum << endl;
+	
+	cout << "zData(normalize) = ";
+	for(long i = 0; i < factorNum; i++) {cout << zData[1][i] << " ";}
+	cout << endl; cin.ignore();
 
 	/* Params(long factorNum, long sampleNum, long iterNum, double alpha, long numThread)
 	 * alpha : learning rate (0.001 to 1.0 values are used in general
 	 * iterNum does not need to be large because we use mini-batch technique + optimized gradient decent
 	 */
-	SecureML::Params params(factorNum, sampleNum, 20, 1.0, pool.NumThreads());
+	SecureML::Params params(factorNum, sampleNum, 20, 10.0, pool.NumThreads());
 
 	/* Key Generation for HEAANBOOT library
 	 * If params.iterNum is larger than params.iterNumPerBoot, this will generate public key for bootstrapping
@@ -82,11 +94,11 @@ int main() {
 
 	/* Print Data Value / Pr[Y=1|X=x] for given test file using the dwData
 	 * */
-	SecureML::testProbAndYval("data/MIMIC.csv", dwData);
+	SecureML::testProbAndYval("../data/MIMIC.csv", dwData);
 
 	/* Compute AUROC value
 	 * */
-	SecureML::testAUROC("data/MIMIC.csv", dwData);
+	SecureML::testAUROC("../data/MIMIC.csv", dwData);
 
 	delete[] dwData;
 	return 0;
