@@ -2,6 +2,7 @@
 #define SRC_ML_H_
 
 #include <NTL/BasicThreadPool.h>
+#include <thread>
 
 #include <complex.h>
 #include <vector>
@@ -16,7 +17,9 @@
 
 using namespace std;
 
-static double degree3[4] = {-0.5,0.15012,0.0,-0.001593}; //-> -0.5 + 0.15012 * X - 0.001593 * X^3
+//static double degree3[4] = {0.5,-0.25,0.0,-0.0208}; //> ~ 1 / (1 + exp(x)) (Talyor Expansion)
+//static double degree3[4] = {0.5,-0.15012,0.0,0.001593}; //> ~ 1 / (1 + exp(x)) (LSFitting with bnd [-8,8])
+static double degree3[4] = {0.5,-0.0843,0.0,0.0002}; //> ~ 1/ (1 + exp(x)) (LSFitting with bnd [-16,16])
 
 namespace SecureML {
 
@@ -28,9 +31,13 @@ namespace SecureML {
 
 		BasicThreadPool& pool;
 
-		Ciphertext InnerProduct(Ciphertext* encZData, Ciphertext* encWData);
+		Ciphertext InnerProduct(Ciphertext* encZData, Ciphertext* encVData);
 
 		void Sigmoid(Ciphertext* encGrad, Ciphertext* encZData, Ciphertext& encIP, double gamma);
+
+		void plainInnerProduct(double* ip, double** zData, double* vData, long factorNum, long sampleNum);
+
+		void plainSigmoid(double* encGrad, double** zData, double* ip, double gamma, long factorNum, long sampleNum);
 
 	public:
 
@@ -40,16 +47,16 @@ namespace SecureML {
 		// SecureML parameter //
 		Params& params;
 
-		ZZX auxpoly;
+		ZZX dummy;
 
 		ML(Scheme& scheme, Params& params, BasicThreadPool& pool, SecretKey& sk) : scheme(scheme), pool(pool), params(params), sk(sk) {
 
-			// Generate auxpolynomial which is encoding of some special vector //
+			// Generate dummy polynomial which is encoding of some special vector //
 			complex<double>* pvals = new complex<double>[params.slots]();
 			for (long i = 0; i < params.slots; i += params.batch) {
 				pvals[i].real(1.0);
 			}
-			auxpoly = scheme.context.encode(pvals, params.slots, params.pBits);
+			dummy = scheme.context.encode(pvals, params.slots, params.pBits);
 			delete[] pvals;
 
 		}
@@ -58,10 +65,16 @@ namespace SecureML {
 		void EncryptzData(double** zData, long factorNum, long sampleNum);
 
 		// Run secure training algorithm using encrypted value (saved in Hard Drive) //
-		void Update(Ciphertext* encWData, Ciphertext* encVData, double gamma, double eta);
+		void Update(Ciphertext* encWData, Ciphertext* encVData, double gamma, double eta, long blockID);
 
-		// Training by repeat update process params.numIter times //
-		void Training(Ciphertext* encWData, long factorNum);
+		// Training by repeating update process params.numIter times //
+		void Training(Ciphertext* encWData, long factorNum, long sampleNum, double* wData, double** zData);
+
+		// Run training algorithm using un-enrypted data //
+		void plainUpdate(double* wData, double* vData, double** zData, double gamma, double eta, long factorNum, long sampleNum, long blockID);
+
+		// Training by repeating plainUpdate process parms.numIter times //
+		void plainTraining(double* wData, double** zData, long factorNum, long sampleNum);
 
 		// Decrypt encrypted wData //
 		void DecryptwData(double* wData, Ciphertext* encWData, long factorNum);

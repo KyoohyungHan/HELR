@@ -21,38 +21,28 @@ chrono::high_resolution_clock::time_point t1, t2;
 using namespace std;
 using namespace NTL;
 
-int main() {
+void test(string file, string file_test, bool isFirst, long numThread, bool isEncrypted) {
 
 	/* Construct BasicThreadPool and set the number of thread
 	 * */
-	long numThread = 8;
 	BasicThreadPool pool(numThread);
 
 	/* Read Data file and shuffle and normalize it
 	 * */
 	long factorNum, sampleNum;
-	string FILE("../data/MIMIC.csv");
-	double** zData = SecureML::zDataFromFile(FILE, factorNum, sampleNum);
+	double** zData = SecureML::zDataFromFile(file, factorNum, sampleNum, isFirst);
 
 	SecureML::shuffleZData(zData, factorNum, sampleNum);
-	
-	cout << "zData(shuffle) = ";
-	for(long i = 0; i < factorNum; i++) {cout << zData[1][i] << " ";}
-	cout << endl; cin.ignore();
-
 	SecureML::normalizeZData(zData, factorNum, sampleNum);
-
-	cout << factorNum << ", " << sampleNum << endl;
 	
-	cout << "zData(normalize) = ";
-	for(long i = 0; i < factorNum; i++) {cout << zData[1][i] << " ";}
-	cout << endl; cin.ignore();
-
 	/* Params(long factorNum, long sampleNum, long iterNum, double alpha, long numThread)
 	 * alpha : learning rate (0.001 to 1.0 values are used in general
 	 * iterNum does not need to be large because we use mini-batch technique + optimized gradient decent
 	 */
-	SecureML::Params params(factorNum, sampleNum, 20, 10.0, pool.NumThreads());
+	SecureML::Params params(factorNum, sampleNum, 32, 1.0, pool.NumThreads());
+	params.path_to_file = file;
+	params.path_to_test_file = file_test;
+	params.isfirst = isFirst;
 
 	/* Key Generation for HEAANBOOT library
 	 * If params.iterNum is larger than params.iterNumPerBoot, this will generate public key for bootstrapping
@@ -61,9 +51,11 @@ int main() {
 	Context context(params.logN, params.logQBoot);
 	SecretKey sk(params.logN);
 	Scheme scheme(sk, context);
-	scheme.addLeftRotKeys(sk);
-	scheme.addRightRotKeys(sk);
-	scheme.addBootKey(sk, params.bBits, params.logq + params.logI);
+	if(isEncrypted) {
+		scheme.addLeftRotKeys(sk);
+		scheme.addRightRotKeys(sk);
+		scheme.addBootKey(sk, params.bBits, params.logq + params.logI);
+	}
 	END(); PRINTTIME("\n - KeyGen");
 
 	/* Simple Constructor for secureML class
@@ -75,32 +67,67 @@ int main() {
 	 * To prepare for large number of data case, encryption of zData will be saved in encData/ folder with .txt files
 	 * */
 	START();
-	secureML.EncryptzData(zData, factorNum, sampleNum);
+	if(isEncrypted) secureML.EncryptzData(zData, factorNum, sampleNum);
 	END(); PRINTTIME(" - Encrypt");
 
 	/* Training using zData which are saved as txt file
 	 * */
 	START();
+	double* pwData = new double[params.factorNum]();
 	Ciphertext* encWData = new Ciphertext[params.cnum];
-	secureML.Training(encWData, factorNum);
+	if(isEncrypted) secureML.Training(encWData, factorNum, sampleNum, pwData, zData);
+	else secureML.plainTraining(pwData, zData, factorNum, sampleNum);
 	END(); PRINTTIME("\n - Training");
 
-	/* Decrypt encWData using secretkey sk
-	 * */
-	START();
-	double* dwData = new double[factorNum]();
-	secureML.DecryptwData(dwData, encWData, factorNum);
-	END(); PRINTTIME("\n - Decrypt");
+	if(isEncrypted) {
+		/* Decrypt encWData using secretkey sk
+		 * */
+		double* dwData = new double[factorNum]();
+		secureML.DecryptwData(dwData, encWData, factorNum);
+		
+		/* Print Data Value / Pr[Y=1|X=x] for given test file using the dwData
+	 	* */
+		SecureML::testProbAndYval(params.path_to_test_file, dwData, params.isfirst);
+		delete[] dwData;
+	}
+	delete[] pwData;
+	delete[] encWData;
+}
 
-	/* Print Data Value / Pr[Y=1|X=x] for given test file using the dwData
-	 * */
-	SecureML::testProbAndYval("../data/MIMIC.csv", dwData);
+int main() {
 
-	/* Compute AUROC value
-	 * */
-	SecureML::testAUROC("../data/MIMIC.csv", dwData);
+	string file1("../data/MNIST_train.txt"); //> file for training
+	string file2("../data/MNIST_test.txt"); //> file for testing
+	bool isFirst = true; //> Y val is at the first column?
 
-	delete[] dwData;
+	// Un-encrypted Logistic Regression //
+
+	// cout << "!!! Test for Thread = 1 !!!" << endl;
+	// test(file, isFirst, 1, false);
+
+	// cout << "!!! Test for Thread = 2 !!!" << endl;
+	// test(file, isFirst, 2, false);
+
+	// cout << "!!! Test for Thread = 4 !!!" << endl;
+	// test(file, isFirst, 4, false);
+
+	cout << "!!! Test for Thread = 8 !!!" << endl;
+	test(file1, file2, isFirst, 8, false);
+
+	// Encrypted Logistic Regression //
+
+	// cout << "!!! Test for Thread = 1 !!!" << endl;
+	// test(file, isFirst, 1, true);
+
+	// cout << "!!! Test for Thread = 2 !!!" << endl;
+	// test(file1, file2, isFirst, 2, true);
+
+	// cout << "!!! Test for Thread = 4 !!!" << endl;
+	// test(file1, file2, isFirst, 4, true);
+
+	// cout << "!!! Test for Thread = 8 !!!" << endl;
+	// test(file1, file2, isFirst, 8, true);
+
 	return 0;
 }
 

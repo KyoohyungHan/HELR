@@ -44,7 +44,7 @@ all: SecureML
 SecureML: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross G++ Linker'
-	g++ -L ../../HEAANBOOT/HEAANBOOT/lib -o "SecureML" $(OBJS) $(USER_OBJS) $(LIBS) -pthread -O2
+	g++ -L/Users/Han/git/HEAANBOOT/HEAANBOOT/lib -o "SecureML" $(OBJS) $(USER_OBJS) $(LIBS) -pthread
 	@echo 'Finished building target: $@'
 	@echo ' '
 

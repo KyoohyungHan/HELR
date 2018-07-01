@@ -48,7 +48,6 @@ namespace SecureML
 					zj[i] = zj[0] * zline[j][i];
 				}
 				zData[j] = zj;
-				delete[] zj;
 			}
 		} else {
 			for(long j = 0; j < sampleDim; ++j) {
@@ -58,23 +57,19 @@ namespace SecureML
 					zj[i] = zj[0] * zline[j][i-1];
 				}
 				zData[j] = zj;
-				delete[] zj;
 			}
 		}
 		return zData;
 	}
 	/****************************************************************************/
 	void normalizeZData(double** zData, long factorDim, long sampleDim) {
-		long i, j;
-		double m;
-		for (i = 0; i < factorDim; ++i) {
-			m = 0.0;
-			for (j = 0; j < sampleDim; ++j) {
-				//m = max(m, abs(zData[j][i]));
+		for (long i = 0; i < factorDim; ++i) {
+			double m = 0.0;
+			for (long j = 0; j < sampleDim; ++j) {
 				if(m < abs(zData[j][i])) m = abs(zData[j][i]);
 			}
 			if(m > 1e-10) {
-				for (j = 0; j < sampleDim; ++j) {
+				for (long j = 0; j < sampleDim; ++j) {
 					zData[j][i] = zData[j][i] / m;
 				}
 			}
@@ -82,7 +77,8 @@ namespace SecureML
 	}
 	/****************************************************************************/
 	void shuffleZData(double** zData, long factorDim, long sampleDim) {
-		srand(time(NULL));
+		//srand(time(NULL));
+		srand(1111); //> fix seed for fair comparison
 		double* tmp = new double[factorDim];
 		for (long i = 0; i < sampleDim; ++i) {
 			long idx = i + rand() / (RAND_MAX / (sampleDim - i) + 1);
@@ -110,20 +106,18 @@ namespace SecureML
 		for(long i = 0; i < sampleNum; i++) {
 			openFile << prob[i] << ", " << yval[i] << endl;
 		}
+		openFile.close();
 		delete[] yval;
 		delete[] prob;
 	}
 	/****************************************************************************/
-	void testAUROC(string path, double* wData, bool isfirst) {
+	void testAUROC(double& auc, double& accuracy, string path, double* wData, bool isfirst) {
 
 		long sampleNum;
 		long factorNum;
 		double** zData = zDataFromFile(path, factorNum, sampleNum, isfirst);
+		normalizeZData(zData, factorNum, sampleNum);
 		
-		cout << "path = " << path << endl;
-		cout << "factorNUm(test) = " << factorNum << endl;
-		cout << "sampleNum(test) = " << sampleNum << endl;
-
 		cout << "wData = [";
 		for(long i = 0; i < 10; i++) {
 			cout << wData[i] << ',';
@@ -131,30 +125,39 @@ namespace SecureML
 		}
 
 		long TN = 0, FP = 0;
-		vector<double> thetaTN;
-		vector<double> thetaFP;
+		vector<double> thetaTN(0);
+		vector<double> thetaFP(0);
 
-	    	for(long i = 0; i < sampleNum; ++i){
-	        	if(zData[i][0] > 0) {
-	            		if(innerproduct(zData[i], wData, factorNum) < 0){ TN++; }
-	            		thetaTN.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
-	        	} else {
-		            	if(innerproduct(zData[i], wData, factorNum) < 0){ FP++; }
-	        	    	thetaFP.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
-	        	}
-	    	}
-	    	if(thetaFP.size() == 0 || thetaTN.size() == 0) {
+	   	for(long i = 0; i < sampleNum; ++i){
+	    	if(zData[i][0] > 0)
+			{
+	            if(innerproduct(zData[i], wData, factorNum) < 0){
+					TN++;
+				}
+	            thetaTN.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
+	        } else {
+		        if(innerproduct(zData[i], wData, factorNum) < 0){
+					FP++;
+				}
+	        	thetaFP.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
+	        }
+	    }
+		accuracy = (double)(sampleNum - TN - FP) / sampleNum;
+		cout << "Accuracy: " << accuracy << endl;
+		auc = 0.0;
+	    if(thetaFP.size() == 0 || thetaTN.size() == 0) {
 	        cout << "n_test_yi = 0 : cannot compute AUC" << endl;
-	    	} else{
-	        	double auc = 0.0;
-	        	for(long i = 0; i < thetaTN.size(); ++i){
-	            	for(long j = 0; j < thetaFP.size(); ++j){
-	                	if(thetaFP[j] <= thetaTN[i]) auc++;
-	            	}
+	    } else {
+	    	for(long i = 0; i < thetaTN.size(); ++i){
+	        	for(long j = 0; j < thetaFP.size(); ++j){
+	            	if(thetaFP[j] <= thetaTN[i]) auc++;
 	        	}
-	        	auc /= thetaTN.size() * thetaFP.size();
-	        	cout << "AUC: " << auc << endl;
 	    	}
+	    	auc /= thetaTN.size() * thetaFP.size();
+	    	cout << "AUC: " << auc << endl;
+	    }
+		vector<double>().swap(thetaTN);
+		vector<double>().swap(thetaFP);
 	}
 	/****************************************************************************/
 }

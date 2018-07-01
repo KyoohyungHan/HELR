@@ -2,6 +2,7 @@
 #define SRC_PARAMS_H_
 
 #include <cmath>
+#include <string>
 #include <algorithm>
 
 using namespace std;
@@ -18,9 +19,9 @@ namespace SecureML {
 
 		long logI, logT;
 
-		long wBits, pBits, lBits, aBits;
+		long wBits, pBits, lBits;
 
-		long kdeg, kBits;
+		long kdeg;
 
 		long iterNum, iterPerBoot;
 
@@ -36,6 +37,12 @@ namespace SecureML {
 
 		long numThread;
 
+		bool isfirst;
+
+		string path_to_file;
+
+		string path_to_test_file;
+
 		double alpha;
 
 		Params();
@@ -43,62 +50,49 @@ namespace SecureML {
 		Params(long factorNum, long sampleNum, long iterNum, double alpha, long numThread)
 		{
 			this->factorNum = 1 << (long)ceil(log2(factorNum));
-			this->sampleNum = 1 << (long)ceil(log2(sampleNum));
+			//this->sampleNum = 1 << (long)ceil(log2(sampleNum));
 			this->iterNum = iterNum;
 			this->numThread = numThread;
 			this->alpha = alpha;
 
 			// Set precision bits //
-			wBits = 30; pBits = 20;
-			lBits = 5; aBits = 5;
+			wBits = 40; pBits = 15; lBits = 5;
 
 			// Set Iteration Number per bootstrapping //
-			iterPerBoot = 4;
+			iterPerBoot = 3;
 
 			// Set degree of approximate polynomial //
-			kdeg = 3; kBits = (long)ceil(log2(kdeg));
+			kdeg = 3;
 
 			// Compute logQ //
-			logQ = (wBits + lBits) + iterPerBoot * ((kBits + 1) * wBits + 2 * pBits + aBits + (long)ceil(log2(numThread)));
+			logQ = wBits + lBits + iterPerBoot * (3 * wBits + 2 * pBits);
 
 			// Compute logQBoot for bootstrapping //
-			logq = wBits + 5;
+			logq = wBits + lBits;
 			logI = 4; logT = 4;
-			long bitForBoot = 32 + (logI + logT + 5) * logq + (logI + logT + 6) * logI + logT + logq + 4;
+			long bitForBoot = 16 + logT + logI + (logI + logT + 6) * (logq + logI);
 			logQBoot = logQ + bitForBoot;
 
 			// Compute proper logN for security parameter 80-bit //
 			long NBnd = ceil(logQBoot * (80 + 110) / 3.6);
 			double logNBnd = log2((double)NBnd);
 			logN = (long)ceil(logNBnd);
+			if(logN > 16) cerr << "We recommand you to use smaller iterPerBoot!!!" << endl;
 
 			// Compute Best blockSize for given numThread //
 			fNumBits = (long)ceil(log2(factorNum));
-			sNumBits = 0;
-			while(1)
-			{
-				if((numThread == 1 && cnum == numThread + 1) || sNumBits > (long)ceil(log2(sampleNum))){
-					sNumBits--;
-					bBits = min(logN - 1 - sNumBits, fNumBits);
-					batch = 1 << bBits;
-					sBits = sNumBits + bBits;
-					slots =  1 << sBits;
-					cnum = (long)ceil((double)(1 << fNumBits) / batch);
-					break;
-				}
-				sNumBits++;
-				bBits = min(logN - 1 - sNumBits, fNumBits);
-				batch = 1 << bBits;
-				sBits = sNumBits + bBits;
-				slots =  1 << sBits;
-				cnum = (long)ceil((double)(1 << fNumBits) / batch);
-				if(2 * cnum == numThread) break;
-			}
-			blockSize = 1 << sNumBits;
+			sNumBits = (long)ceil(log2(sampleNum));
 
-			// Increase Iteration Number by mini-batch //
-			this->iterNum *= (long)ceil((double)(sampleNum) / (numThread * blockSize));
-
+			// Select other parameters //
+			cnum = numThread;
+			batch = this->factorNum / cnum;
+			slots = 1 << (logN - 1);
+			blockSize = slots / batch;
+			this->sampleNum = (sampleNum / blockSize) * blockSize;
+			if(sampleNum % blockSize != 0) this->sampleNum += blockSize;
+			bBits = (long)ceil(log2(batch));
+			sBits = (long)ceil(log2(slots));
+		
 			// Print parameters //
 			cout << "***********************************" << endl;
 			cout << "Secure Machine Learning Parameters" << endl;

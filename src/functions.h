@@ -22,10 +22,8 @@ namespace SecureML {
 
 	void testProbAndYval(string path, double* wData, bool isfirst = true);
 
-	void testAUROC(string path, double* wData, bool isfirst = true);
+	void testAUROC(double& auc, double& accuracy, string path, double* wData, bool isfirst = true);
 
 }
-
-
 
 #endif /* SRC_FUNCTIONS_H_ */

@@ -7,54 +7,74 @@
 namespace SecureML
 {
 	/****************************************************************************/
-	Ciphertext ML::InnerProduct(Ciphertext* encZData, Ciphertext* encWData) {
+	// Inner Product consumes (wBits + pBits) - bit of ciphertext modulus //
+	Ciphertext ML::InnerProduct(Ciphertext* encZData, Ciphertext* encVData) {
+		////////////////////////////////
 		Ciphertext* encIPvec = new Ciphertext[params.cnum];
-		for(long i = 0; i < params.cnum; i++) {
-			scheme.modDownToAndEqual(encZData[i], encWData[i].logq);
-			encIPvec[i] = scheme.mult(encZData[i], encWData[i]); //> 2 * wBits
-			for(long j = 1; j < params.bBits; j++) {
+		pool.exec_index(params.cnum, [&](long i) {
+			Ciphertext tmp = scheme.modDownTo(encZData[i], encVData[i].logq);
+			encIPvec[i] = scheme.mult(tmp, encVData[i]); //> logp: 2 * wBits
+			for(long j = 0; j < params.bBits; j++) {
 				Ciphertext encrot = scheme.leftRotateByPo2(encIPvec[i], j);
-				scheme.addAndEqual(encIPvec[i], encrot); //> 2 * wBits
+				scheme.addAndEqual(encIPvec[i], encrot); //> logp: 2 * wBits
 			}
-		}
+		});
+		////////////////////////////////
 		Ciphertext encIP = encIPvec[0];
 		for(long i = 1; i < params.cnum; i++) {
-			scheme.addAndEqual(encIP, encIPvec[i]); //> 2 * wBits
+			scheme.addAndEqual(encIP, encIPvec[i]); //> logp: 2 * wBits
 		}
-		scheme.reScaleByAndEqual(encIP, params.wBits); //> wBits
-		scheme.multByPolyAndEqual(encIP, auxpoly, params.pBits); //> wBits + pBits
-		for (long i = 0; i < params.bBits; i++) {
+		////////////////////////////////> Multiply Dummy Matrix
+		scheme.multByPolyAndEqual(encIP, dummy, params.pBits); //> logp: 2 * wBits + pBits
+		////////////////////////////////
+		for(long i = 0; i < params.bBits; i++) {
 			Ciphertext tmp = scheme.rightRotateByPo2(encIP, i);
 			scheme.addAndEqual(encIP, tmp);
 		}
+		//> Re-scaling the scaling factor
+		scheme.reScaleByAndEqual(encIP, params.pBits + params.wBits); //> logp: wBits, bitDown: wBits + pBits
 		delete[] encIPvec;
 		return encIP;
 	}
 	/****************************************************************************/
+	// Sigmoid consumes (2 * wBits)-bit of ciphertext modulus //
 	void ML::Sigmoid(Ciphertext* encGrad, Ciphertext* encZData, Ciphertext& encIP, double gamma) {
-		Ciphertext encIPsqr = scheme.square(encIP); //> 2 * wBits - 2 * aBits
-		scheme.reScaleByAndEqual(encIPsqr, params.wBits); //> wBits - 2 * aBits
-		scheme.addConstAndEqual(encIPsqr, degree3[1] / degree3[3], params.wBits - 2 * params.aBits);
-		for (long i = 0; i < params.cnum; ++i)
-		{
-			encGrad[i] = scheme.multByConst(encZData[i], (gamma * degree3[3]), params.wBits + 3 * params.aBits);
-			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> wBits + 3 * params.aBits
-			if(encGrad[i].logq > encIP.logq) scheme.modDownToAndEqual(encGrad[i], encIP.logq);
-			else scheme.modDownToAndEqual(encIP, encGrad[i].logq);
-			scheme.multAndEqual(encGrad[i], encIP); //> 2 * wBits + 2 * params.aBits
-			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> wBits + 2 * params.aBits
-			scheme.multAndEqual(encGrad[i], encIPsqr); //> 2 * wBits
-			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> wBits
-			Ciphertext tmp = scheme.multByConst(encZData[i], (gamma * degree3[0]), params.wBits); //> 2 * wBits
-			scheme.reScaleByAndEqual(tmp, params.wBits); //> wBits
-			if(tmp.logq > encGrad[i].logq) scheme.modDownToAndEqual(tmp, encGrad[i].logq);
-			else scheme.modDownToAndEqual(encGrad[i], tmp.logq);
-			scheme.addAndEqual(encGrad[i], tmp);
-		}
-		for (long i = 0; i < params.cnum; ++i) {
+		Ciphertext encIPsqr = scheme.square(encIP); //> logp: 2 * wBits
+		scheme.addConstAndEqual(encIPsqr, degree3[1] / degree3[3], 2 * params.wBits);
+		scheme.reScaleByAndEqual(encIPsqr, params.wBits); //> logp: wBits, bitDown: wBits
+		////////////////////////////////
+		pool.exec_index(params.cnum, [&](long i) {
+			encGrad[i] = scheme.multByConst(encZData[i], (gamma * degree3[3]), 2 * params.wBits); //> logq: logQ + wBits
+			scheme.reScaleByAndEqual(encGrad[i], 2 * params.wBits); //> logp: wBits, logq: logQ - pBits
+			scheme.modDownToAndEqual(encGrad[i], encIP.logq);
+			scheme.multAndEqual(encGrad[i], encIP); //> logp: 2 * wBits
+			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> logp: wBits, bitDown: wBits
+			scheme.multAndEqual(encGrad[i], encIPsqr); //> logp: 2 * wBits
+			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> logp: wBits, bitDown: 2 * wBits
+			Ciphertext tmp = scheme.multByConst(encZData[i], (gamma * degree3[0]), 2 * params.wBits); //> 2 * wBits
+			scheme.reScaleByAndEqual(tmp, 2 * params.wBits); //> logp: wBits, logq: logQ - wBits
+			scheme.modDownToAndEqual(tmp, encGrad[i].logq);
+			scheme.addAndEqual(encGrad[i], tmp); //> bitDown: 2 * wBits
 			for (long l = params.bBits; l < params.sBits; ++l) {
 				Ciphertext tmp = scheme.leftRotateByPo2(encGrad[i], l);
 				scheme.addAndEqual(encGrad[i], tmp);
+			}
+		});
+	}
+	/****************************************************************************/
+	void ML::plainInnerProduct(double* ip, double** zData, double* vData, long factorNum, long sampleNum) {
+		for(long i = 0; i < sampleNum; i++) {
+			ip[i] = innerproduct(vData, zData[i], factorNum);
+		}
+	}
+	/****************************************************************************/
+	void ML::plainSigmoid(double* grad, double** zData, double* ip, double gamma, long factorNum, long sampleNum) {
+		for(long i = 0; i < sampleNum; i++) {
+			//double tmp = (degree3[0] + degree3[1] * ip[i] + degree3[3] * pow(ip[i], 3)); //> ~ 1 / (1 + exp(x))
+			double tmp = (1. / (1. + exp(ip[i])));
+			tmp *= gamma;
+			for(long j = 0; j < factorNum; j++) {
+				grad[j] += tmp * zData[i][j];
 			}
 		}
 	}
@@ -76,7 +96,7 @@ namespace SecureML
 								}
 							}
 						}
-						Ciphertext encZData = scheme.encrypt(pzData, params.slots, params.wBits, params.logQ);
+						Ciphertext encZData = scheme.encrypt(pzData, params.slots, params.wBits, params.logQ + params.wBits);
 						SerializationUtils::writeCiphertext(encZData, "../encData/Ciphertext_" + std::to_string(i + 1) + "_" + std::to_string(j + 1) + ".txt");
 						delete[] pzData;
 					}
@@ -84,146 +104,205 @@ namespace SecureML
 			);
 	}
 	/****************************************************************************/
-	void ML::Update(Ciphertext* encWData, Ciphertext* encVData, double gamma, double eta) {
-		// Copy encWData and encVData to each thread //
-		Ciphertext* encWDataCopyThread = new Ciphertext[pool.NumThreads() * params.cnum];
-		Ciphertext* encVDataCopyThread = new Ciphertext[pool.NumThreads() * params.cnum];
-		for(long i = 0; i < pool.NumThreads() * params.cnum; i++) {
-			encWDataCopyThread[i] = encWData[i % params.cnum]; //> log scale = wBits
-			encVDataCopyThread[i] = encVData[i % params.cnum]; //> log scale = wBits
-		}
-
-		long blockNum = params.sampleNum / params.blockSize;
-
-		// Multi-Threaded Training //
-		pool.exec_index(pool.NumThreads(), [&](long idx) {
-
-			// 1. Pick Random blockID
-			long blockID = rand() % blockNum;
-
-			// 2. Read txt file and convert it to Ciphertext class
-			Ciphertext* encZData = new Ciphertext[params.cnum]; //> wBits
-			for(long i = 0; i < params.cnum; i++) {
-				encZData[i] = SerializationUtils::readCiphertext("../encData/Ciphertext_" + std::to_string(blockID + 1) + "_" + std::to_string(i + 1) + ".txt");
-				DecryptAndPrint("encZData_"+to_string(i+1), encZData[i]);
-			}
-
-			// 3. Update encWData and encVData (based on encZData)
-			Ciphertext* encGrad = new Ciphertext[params.cnum];
-			Ciphertext encIP = InnerProduct(encZData, encVDataCopyThread + idx * params.cnum);
-			scheme.reScaleByAndEqual(encIP, params.pBits + params.aBits); //> wBits - aBits
-			Sigmoid(encGrad, encZData, encIP, gamma);
-			for(long i = 0; i < params.cnum; i++) {
-				scheme.modDownToAndEqual(encVDataCopyThread[idx * params.cnum + i], encGrad[i].logq);
-				Ciphertext ctmpw = scheme.sub(encVDataCopyThread[idx * params.cnum + i], encGrad[i]); //> wBits
-				encVDataCopyThread[idx * params.cnum + i] = scheme.multByConst(ctmpw, 1. - eta, params.pBits); //> wBits + pBits
-				scheme.reScaleByAndEqual(encVDataCopyThread[idx * params.cnum + i], params.pBits); //> wBits
-				scheme.multByConstAndEqual(encWDataCopyThread[idx * params.cnum + i], eta, params.pBits); //> wBits + pBits
-				scheme.reScaleByAndEqual(encWDataCopyThread[idx * params.cnum + i], params.pBits); //> wBits
-				scheme.modDownToAndEqual(encWDataCopyThread[idx * params.cnum + i], encVDataCopyThread[idx * params.cnum + i].logq);
-				scheme.addAndEqual(encVDataCopyThread[idx * params.cnum + i], encWDataCopyThread[idx * params.cnum + i]);
-				encWDataCopyThread[idx * params.cnum + i] = ctmpw;
-				scheme.modDownToAndEqual(encWDataCopyThread[idx * params.cnum + i], encVDataCopyThread[idx * params.cnum + i].logq);
-			}
-
-			delete[] encZData;
-			delete[] encGrad;
-		});
-
-		// Compute average of each results from each thread and update //
+	void ML::Update(Ciphertext* encWData, Ciphertext* encVData, double gamma, double eta, long blockID) {
+		// Read txt file and convert it to Ciphertext class //
+		Ciphertext* encZData = new Ciphertext[params.cnum]; //> wBits
 		for(long i = 0; i < params.cnum; i++) {
-			encWData[i] = encWDataCopyThread[i];
-			encVData[i] = encVDataCopyThread[i];
-			for(long j = 1; j < pool.NumThreads(); j++) {
-				scheme.addAndEqual(encWData[i], encWDataCopyThread[j * params.cnum + i]);
-				scheme.addAndEqual(encVData[i], encVDataCopyThread[j * params.cnum + i]);
-			}
-			scheme.divByPo2AndEqual(encWData[i], (long)log2(pool.NumThreads()));
-			scheme.divByPo2AndEqual(encVData[i], (long)log2(pool.NumThreads()));
+			encZData[i] = SerializationUtils::readCiphertext("../encData/Ciphertext_" + std::to_string(blockID + 1) + "_" + std::to_string(i + 1) + ".txt");
 		}
-
-		delete[] encWDataCopyThread;
-		delete[] encVDataCopyThread;
-
+		// Update encWData and encVData (based on encZData) //
+		Ciphertext* encGrad = new Ciphertext[params.cnum];
+		Ciphertext encIP = InnerProduct(encZData, encVData); //> bitDown: wBits + pBits
+		Sigmoid(encGrad, encZData, encIP, gamma); //> bitDown: 3 * wBits + 2 * pBits
+		// Update encWData and encVData //
+		pool.exec_index(params.cnum, [&](long i) {
+			Ciphertext tmp1 = scheme.modDownTo(encVData[i], encGrad[i].logq);
+			scheme.addAndEqual(tmp1, encGrad[i]);
+			Ciphertext tmp2 = scheme.multByConst(encWData[i], eta, params.wBits + params.pBits);
+			scheme.reScaleByAndEqual(tmp2, params.wBits + params.pBits);
+			encVData[i] = scheme.multByConst(tmp1, (1. - eta), params.pBits);
+			scheme.reScaleByAndEqual(encVData[i], params.pBits);
+			scheme.modDownToAndEqual(tmp2, encVData[i].logq);
+			scheme.addAndEqual(encVData[i], tmp2);
+			encWData[i] = tmp1;
+			scheme.modDownToAndEqual(encWData[i], encVData[i].logq);
+		});
+		delete[] encZData;
+		delete[] encGrad;
 	}
 	/****************************************************************************/
-	void ML::Training(Ciphertext* encWData, long factorNum) {
+	void ML::Training(Ciphertext* encWData, long factorNum, long sampleNum, double* wData, double** zData) {
 		chrono::high_resolution_clock::time_point t1, t2;
 		
-		string FILE("../data/MIMIC.csv");
 		double gamma, eta;
 		double alpha0, alpha1;
 
 		Ciphertext* encVData = new Ciphertext[params.cnum];
 		for(long i = 0; i < params.cnum; i++) {
-			encWData[i] = scheme.encryptZeros(params.batch, params.wBits, params.logQ); //> wBits
-			encVData[i] = scheme.encryptZeros(params.batch, params.wBits, params.logQ); //> wBits
+			encWData[i] = scheme.encryptZeros(params.slots, params.wBits, params.logQ); //> wBits
+			encVData[i] = scheme.encryptZeros(params.slots, params.wBits, params.logQ); //> wBits
+		}
+
+		double* vData = new double[params.factorNum]();
+		for(long i = 0; i < params.factorNum; i++) {
+			wData[i] = 0.;
 		}
 
 		alpha0 = 0.01;
 		alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
+		
 		gamma = params.alpha / params.blockSize;
+		long blockNum = params.sampleNum / params.blockSize; 
+
+		double* dwData = new double[factorNum];
+
+		ofstream auroc_enc("auroc_enc_" + to_string(params.numThread) + ".csv");
+		ofstream auroc_ptxt("auroc_ptxt_" + to_string(params.numThread) + ".csv");
+		ofstream accuracy_enc("accuracy_enc_" + to_string(params.numThread) + ".csv");
+		ofstream accuracy_ptxt("accuracy_ptxt_" + to_string(params.numThread) + ".csv");
+
+		double auc, accuracy;
 
 		for(long iter = 0; iter < params.iterNum; iter++) {
 			///////////////////////////////////////////////////////
+			cout << endl;
 			cout << iter + 1 << "-th iteration started !!!" << endl;
 			///////////////////////////////////////////////////////
 
 			eta = (1 - alpha0) / alpha1;
 
+			long blockID = rand() % blockNum;
+
+			cout << "** un-encrypted" << endl;
+			plainUpdate(wData, vData, zData, gamma, eta, factorNum, sampleNum, blockID);
+			SecureML::testAUROC(auc, accuracy, params.path_to_test_file, dwData, params.isfirst);
+			accuracy_ptxt << iter + 1 << ", " << accuracy << endl;
+			auroc_ptxt << iter + 1 << ", " << auc << endl;
+
+			cout << "** encrypted" << endl;
 			start();
-			Update(encWData, encVData, gamma, eta);
+			Update(encWData, encVData, gamma, eta, blockID);
 			end(); print("update");
 
-			double* dwData = new double[factorNum];
 			DecryptwData(dwData, encWData, factorNum);
-			SecureML::testAUROC(FILE, dwData);
-
+			SecureML::testAUROC(auc, accuracy, params.path_to_test_file, dwData, params.isfirst);
+			accuracy_enc << iter + 1 << ", " << accuracy << endl;
+			auroc_enc << iter + 1 << ", " << auc << endl;			
+			
 			alpha0 = alpha1;
 			alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
 
-			if(iter % params.iterPerBoot == params.iterPerBoot - 1 && iter != params.iterNum - 1)
-			{
-				cout << "Bootstrapping START!!!" << endl;
+			if(iter % params.iterPerBoot == params.iterPerBoot - 1 && iter < params.iterNum - 1) {
+				
+				cout << "\nBootstrapping START!!!" << endl;
 				start();
-				pool.exec_index(params.cnum * 2, [&](long idx) {
-					long index;
-					if(idx % 2 == 0) { // W
-						index = idx / 2;
-						encWData[index].slots = params.batch;
-						scheme.bootstrapAndEqual(encWData[index], params.logq, params.logQBoot, params.logT, params.logI);
-						encWData[index].slots = params.slots;
-					} else { // V
-						index = (idx - 1) / 2;
-						encVData[index].slots = params.batch;
-						scheme.bootstrapAndEqual(encVData[index], params.logq, params.logQBoot, params.logT, params.logI);
-						encVData[index].slots = params.slots;
-					}
+				pool.exec_index(params.cnum, [&](long i) {
+					encWData[i].slots = params.batch;
+					scheme.bootstrapAndEqual(encWData[i], params.logq, params.logQBoot, params.logT, params.logI);
+					encWData[i].slots = params.slots;
+				});
+				pool.exec_index(params.cnum, [&](long i) {
+					encVData[i].slots = params.batch;
+					scheme.bootstrapAndEqual(encVData[i], params.logq, params.logQBoot, params.logT, params.logI);
+					encVData[i].slots = params.slots;
+				
 				});
 				end(); print("bootstrapping");
 				cout << "Bootstrapping END!!!" << endl;
 				DecryptwData(dwData, encWData, factorNum);
-				SecureML::testAUROC(FILE, dwData);
+				SecureML::testAUROC(auc, accuracy, params.path_to_test_file, dwData, params.isfirst);
 			}
-			delete[] dwData;
 		}
+		auroc_enc.close();
+		auroc_ptxt.close();
+		accuracy_enc.close();
+		accuracy_ptxt.close();
+		delete[] dwData;
 		delete[] encVData;
 	}
 	/****************************************************************************/
+	void ML::plainUpdate(double* wData, double* vData, double** zData, double gamma, double eta, long factorNum, long sampleNum, long blockID) {
+		// Select zData Block //
+		double** zBlockData = new double*[params.blockSize];
+		for(long i = 0; i < params.blockSize; i++) {
+			zBlockData[i] = new double[params.factorNum];
+			for(long j = 0; j < params.factorNum; j++) {
+				if((blockID * params.blockSize + i) < sampleNum && j < factorNum) zBlockData[i][j] = zData[blockID * params.blockSize + i][j];
+				else zBlockData[i][j] = 0.;
+			}
+		}
+		// Allocate two array //
+		double* grad = new double[params.factorNum]();
+		double* ip = new double[params.blockSize]();
+		// Compute Inner Product and Sigmoid //
+		plainInnerProduct(ip, zBlockData, vData, params.factorNum, params.blockSize);
+		plainSigmoid(grad, zBlockData, ip, gamma, params.factorNum, params.blockSize);
+		// Update wData using vData //
+		for(long i = 0; i < params.factorNum; i++) {
+			double tmp1 = vData[i] + grad[i];
+			double tmp2 = eta * wData[i];
+			vData[i] = tmp1 * (1. - eta) + tmp2;
+			wData[i] = tmp1;
+		}
+		delete[] grad;
+		delete[] ip;
+	}
+	/****************************************************************************/
+	void ML::plainTraining(double* wData, double** zData, long factorNum, long sampleNum) {
+		chrono::high_resolution_clock::time_point t1, t2;
+		
+		double gamma, eta;
+		double alpha0, alpha1;
+
+		double* vData = new double[params.factorNum]();
+		for(long i = 0; i < params.factorNum; i++) {
+			wData[i] = 0.;
+		}
+
+		alpha0 = 0.01;
+		alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
+
+		gamma = params.alpha / params.blockSize;
+		long blockNum = params.sampleNum / params.blockSize; 
+
+		//ofstream acc("accuracy" + to_string(params.numThread) + "_ptxt_deg3.csv");
+		ofstream acc("accuracy" + to_string(params.numThread) + "_ptxt_sigmoid.csv");
+
+		double auc, accuracy;
+
+		for(long iter = 0; iter < params.iterNum; iter++) {
+			///////////////////////////////////////////////////////
+			cout << endl;
+			cout << iter + 1 << "-th iteration started (plain)!!!" << endl;
+			///////////////////////////////////////////////////////
+
+			eta = (1 - alpha0) / alpha1;
+
+			srand(iter);
+
+			start();
+			plainUpdate(wData, vData, zData, gamma, eta, factorNum, sampleNum, rand() % blockNum);
+			end(); print("plain update");
+
+			testAUROC(auc, accuracy, params.path_to_test_file, wData, params.isfirst);
+
+			acc << iter + 1 << ", " << accuracy << endl;
+
+			alpha0 = alpha1;
+			alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
+		}
+		acc.close();
+	}
+	/****************************************************************************/
 	void ML::DecryptwData(double* wData, Ciphertext* encWData, long factorNum) {
-		for (long i = 0; i < (params.cnum - 1); ++i) {
+		for (long i = 0; i < params.cnum; ++i) {
 			complex<double>* dcw = scheme.decrypt(sk, encWData[i]);
 			for (long j = 0; j < params.batch; ++j) {
-				wData[params.batch * i + j] = dcw[j].real();
+				if(params.batch * i + j < factorNum)
+					wData[params.batch * i + j] = dcw[j].real();
 			}
 			delete[] dcw;
 		}
-		complex<double>* dcw = scheme.decrypt(sk, encWData[params.cnum-1]);
-		long rest = factorNum - params.batch * (params.cnum - 1);
-		for (long j = 0; j < rest; ++j) {
-			wData[params.batch * (params.cnum - 1) + j] = dcw[j].real();
-		}
-		delete[] dcw;
 	}
 	/****************************************************************************/
 	void ML::DecryptAndPrint(string msg, Ciphertext cipher) {
