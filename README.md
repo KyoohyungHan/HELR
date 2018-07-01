@@ -1,4 +1,4 @@
-# SecureML
+# Efficient Logistic Regression on Large Encrypted Data
 
 ## How to run this program?
 
