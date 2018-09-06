@@ -8,10 +8,11 @@
 #include <vector>
 #include <string>
 
-#include "Scheme.h"
+#include "HEAAN.h"
+//#include "Scheme.h"
 #include "Params.h"
-#include "Ciphertext.h"
-#include "SerializationUtils.h"
+//#include "Ciphertext.h"
+//#include "SerializationUtils.h"
 
 #include "functions.h"
 
@@ -47,7 +48,7 @@ namespace SecureML {
 		// SecureML parameter //
 		Params& params;
 
-		ZZX dummy;
+		ZZ* dummy;
 
 		ML(Scheme& scheme, Params& params, BasicThreadPool& pool, SecretKey& sk) : scheme(scheme), pool(pool), params(params), sk(sk) {
 
@@ -56,7 +57,8 @@ namespace SecureML {
 			for (long i = 0; i < params.slots; i += params.batch) {
 				pvals[i].real(1.0);
 			}
-			dummy = scheme.context.encode(pvals, params.slots, params.pBits);
+			dummy = new ZZ[scheme.ring.N];
+			scheme.ring.encode(dummy, pvals, params.slots, params.pBits);
 			delete[] pvals;
 
 		}

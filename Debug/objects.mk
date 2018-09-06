@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lHEAANBOOT -lntl -lgmp
+LIBS := -lHEAAN -lntl -lgmp
 

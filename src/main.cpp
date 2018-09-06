@@ -4,9 +4,7 @@
 
 #include <NTL/BasicThreadPool.h>
 
-#include "Context.h"
-#include "SecretKey.h"
-#include "Scheme.h"
+#include "HEAAN.h"
 
 #include "Params.h"
 #include "ML.h"
@@ -48,9 +46,9 @@ void test(string file, string file_test, bool isFirst, long numThread, bool isEn
 	 * If params.iterNum is larger than params.iterNumPerBoot, this will generate public key for bootstrapping
 	 * */
 	START();
-	Context context(params.logN, params.logQBoot);
-	SecretKey sk(params.logN);
-	Scheme scheme(sk, context);
+	Ring ring(params.logN, params.logQBoot);
+	SecretKey sk(ring);
+	Scheme scheme(sk, ring);
 	if(isEncrypted) {
 		scheme.addLeftRotKeys(sk);
 		scheme.addRightRotKeys(sk);
@@ -111,8 +109,8 @@ int main() {
 	// cout << "!!! Test for Thread = 4 !!!" << endl;
 	// test(file, isFirst, 4, false);
 
-	cout << "!!! Test for Thread = 8 !!!" << endl;
-	test(file1, file2, isFirst, 8, false);
+	// cout << "!!! Test for Thread = 8 !!!" << endl;
+	// test(file1, file2, isFirst, 8, false);
 
 	// Encrypted Logistic Regression //
 
@@ -122,8 +120,8 @@ int main() {
 	// cout << "!!! Test for Thread = 2 !!!" << endl;
 	// test(file1, file2, isFirst, 2, true);
 
-	// cout << "!!! Test for Thread = 4 !!!" << endl;
-	// test(file1, file2, isFirst, 4, true);
+	cout << "!!! Test for Thread = 4 !!!" << endl;
+	test(file1, file2, isFirst, 4, true);
 
 	// cout << "!!! Test for Thread = 8 !!!" << endl;
 	// test(file1, file2, isFirst, 8, true);

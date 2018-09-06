@@ -15,7 +15,7 @@ namespace SecureML
 			Ciphertext tmp = scheme.modDownTo(encZData[i], encVData[i].logq);
 			encIPvec[i] = scheme.mult(tmp, encVData[i]); //> logp: 2 * wBits
 			for(long j = 0; j < params.bBits; j++) {
-				Ciphertext encrot = scheme.leftRotateByPo2(encIPvec[i], j);
+				Ciphertext encrot = scheme.leftRotateFast(encIPvec[i], 1 << j);
 				scheme.addAndEqual(encIPvec[i], encrot); //> logp: 2 * wBits
 			}
 		});
@@ -28,7 +28,7 @@ namespace SecureML
 		scheme.multByPolyAndEqual(encIP, dummy, params.pBits); //> logp: 2 * wBits + pBits
 		////////////////////////////////
 		for(long i = 0; i < params.bBits; i++) {
-			Ciphertext tmp = scheme.rightRotateByPo2(encIP, i);
+			Ciphertext tmp = scheme.rightRotateFast(encIP, 1 << i);
 			scheme.addAndEqual(encIP, tmp);
 		}
 		//> Re-scaling the scaling factor
@@ -56,7 +56,7 @@ namespace SecureML
 			scheme.modDownToAndEqual(tmp, encGrad[i].logq);
 			scheme.addAndEqual(encGrad[i], tmp); //> bitDown: 2 * wBits
 			for (long l = params.bBits; l < params.sBits; ++l) {
-				Ciphertext tmp = scheme.leftRotateByPo2(encGrad[i], l);
+				Ciphertext tmp = scheme.leftRotateFast(encGrad[i], 1 << l);
 				scheme.addAndEqual(encGrad[i], tmp);
 			}
 		});
@@ -138,9 +138,10 @@ namespace SecureML
 		double alpha0, alpha1;
 
 		Ciphertext* encVData = new Ciphertext[params.cnum];
+		double* zeroVec = new double[params.slots]();
 		for(long i = 0; i < params.cnum; i++) {
-			encWData[i] = scheme.encryptZeros(params.slots, params.wBits, params.logQ); //> wBits
-			encVData[i] = scheme.encryptZeros(params.slots, params.wBits, params.logQ); //> wBits
+			encWData[i] = scheme.encrypt(zeroVec, params.slots, params.wBits, params.logQ); //> wBits
+			encVData[i] = scheme.encrypt(zeroVec, params.slots, params.wBits, params.logQ); //> wBits
 		}
 
 		double* vData = new double[params.factorNum]();
@@ -197,14 +198,14 @@ namespace SecureML
 				cout << "\nBootstrapping START!!!" << endl;
 				start();
 				pool.exec_index(params.cnum, [&](long i) {
-					encWData[i].slots = params.batch;
+					encWData[i].n = params.batch;
 					scheme.bootstrapAndEqual(encWData[i], params.logq, params.logQBoot, params.logT, params.logI);
-					encWData[i].slots = params.slots;
+					encWData[i].n = params.slots;
 				});
 				pool.exec_index(params.cnum, [&](long i) {
-					encVData[i].slots = params.batch;
+					encVData[i].n = params.batch;
 					scheme.bootstrapAndEqual(encVData[i], params.logq, params.logQBoot, params.logT, params.logI);
-					encVData[i].slots = params.slots;
+					encVData[i].n = params.slots;
 				
 				});
 				end(); print("bootstrapping");
