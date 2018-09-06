@@ -40,7 +40,7 @@ void test(string file, string file_test, bool isFirst, long numThread, bool isEn
 	SecureML::Params params(factorNum, sampleNum, 32, 1.0, pool.NumThreads());
 	params.path_to_file = file;
 	params.path_to_test_file = file_test;
-	params.isfirst = isFirst;
+	params.isfirst = isFirst; ///< Y is at the first column of the data
 
 	/* Key Generation for HEAANBOOT library
 	 * If params.iterNum is larger than params.iterNumPerBoot, this will generate public key for bootstrapping
@@ -117,11 +117,11 @@ int main() {
 	// cout << "!!! Test for Thread = 1 !!!" << endl;
 	// test(file, isFirst, 1, true);
 
-	// cout << "!!! Test for Thread = 2 !!!" << endl;
-	// test(file1, file2, isFirst, 2, true);
+	cout << "!!! Test for Thread = 2 !!!" << endl;
+	test(file1, file2, isFirst, 2, true);
 
-	cout << "!!! Test for Thread = 4 !!!" << endl;
-	test(file1, file2, isFirst, 4, true);
+	//cout << "!!! Test for Thread = 4 !!!" << endl;
+	//test(file1, file2, isFirst, 4, true);
 
 	// cout << "!!! Test for Thread = 8 !!!" << endl;
 	// test(file1, file2, isFirst, 8, true);

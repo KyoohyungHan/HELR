@@ -143,6 +143,7 @@ namespace SecureML
 			encWData[i] = scheme.encrypt(zeroVec, params.slots, params.wBits, params.logQ); //> wBits
 			encVData[i] = scheme.encrypt(zeroVec, params.slots, params.wBits, params.logQ); //> wBits
 		}
+		delete[] zeroVec;
 
 		double* vData = new double[params.factorNum]();
 		for(long i = 0; i < params.factorNum; i++) {
@@ -155,7 +156,7 @@ namespace SecureML
 		gamma = params.alpha / params.blockSize;
 		long blockNum = params.sampleNum / params.blockSize; 
 
-		double* dwData = new double[factorNum];
+		double* dwData = new double[factorNum]();
 
 		ofstream auroc_enc("auroc_enc_" + to_string(params.numThread) + ".csv");
 		ofstream auroc_ptxt("auroc_ptxt_" + to_string(params.numThread) + ".csv");
@@ -219,6 +220,7 @@ namespace SecureML
 		accuracy_enc.close();
 		accuracy_ptxt.close();
 		delete[] dwData;
+		delete[] vData;
 		delete[] encVData;
 	}
 	/****************************************************************************/

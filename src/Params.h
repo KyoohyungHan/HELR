@@ -100,6 +100,7 @@ namespace SecureML {
 			cout << "- factorNum = " << this->factorNum << ", sampleNum = " << this->sampleNum << ", approximate degree = " << kdeg << endl;
 			cout << "- Iteration Number = " << this->iterNum << ", mini-batch Block Size = " << blockSize << ", Learning Rate = " << this->alpha << endl;
 			cout << "- logN = " << this->logN << ", logQ = " << logQ << ", logQBoot = " << logQBoot << ", batch = " << batch << ", cnum = " << cnum << endl;
+			cout << "- logq = " << this->logq << ", logI = " << this->logI << ", logT = " << this->logT << endl;
 
 		}
 	};
