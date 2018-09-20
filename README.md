@@ -6,13 +6,20 @@ In 'Debug' folder, just use 'make all' command (might need to type 'make clean' 
 
 This will construct 'HELR' file that we can run.
 
-To test logistic regression on encrypted data, you need to activate those tests in main.cpp file.
+The command to run HELR is follow:
 
-Notice that you might need to change the path to the NTL library and HEAAN library.
+  ./HELR file_name_for_train file_name_for_test isTargetFirst isEncrypted numThread
+
+- Here files for train and test should be in data folder with csv format (distinguished by comma)
+- isTargetFirst: the target value (Y_i) is at the first column or last
+- isEncrypted: usually "1", but you can use "0" if you want to check plaintext logistic regression (with approximate signmoid).
+- numThread: the number of thread for multi-threading
+
+Notice that you might need to change the path to the NTL library and HEAAN library (at makefile and src/subdir.mk).
 
 NTL lib: http://www.shoup.net/ntl/
 
-HEAAN lib: https://github.com/kimandrik/HEAAN (pre-released v1.2)
+HEAAN lib: https://github.com/kimandrik/HEAAN (commit: c2f08aa6163d7ae193f54419559d8decc6f05ef4)
 
 ## Example
 
