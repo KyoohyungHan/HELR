@@ -136,7 +136,7 @@ namespace SecureML
 	/****************************************************************************/
 	void ML::Training(Ciphertext* encWData, long factorNum, long sampleNum, double* wData, double** zData) {
 		chrono::high_resolution_clock::time_point t1, t2;
-		
+
 		double gamma, eta;
 		double alpha0, alpha1;
 
@@ -155,9 +155,9 @@ namespace SecureML
 
 		alpha0 = 0.01;
 		alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
-		
+
 		gamma = params.alpha / params.blockSize;
-		long blockNum = params.sampleNum / params.blockSize; 
+		long blockNum = params.sampleNum / params.blockSize;
 
 		double* dwData = new double[factorNum]();
 		double auc, accuracy;
@@ -178,8 +178,8 @@ namespace SecureML
 
 			cout << "** un-encrypted" << endl;
 			plainUpdate(wData, vData, zData, gamma, eta, factorNum, sampleNum, blockID);
-			SecureML::testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, dwData, params.isfirst);
-			
+			SecureML::testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, wData, params.isfirst);
+
 			cout << "** encrypted" << endl;
 			start();
 			Update(encWData, encVData, gamma, eta, blockID);
@@ -187,12 +187,12 @@ namespace SecureML
 
 			DecryptwData(dwData, encWData, factorNum);
 			SecureML::testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, dwData, params.isfirst);
-			
+
 			alpha0 = alpha1;
 			alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
 
 			if(iter % params.iterPerBoot == params.iterPerBoot - 1 && iter < params.iterNum - 1) {
-				
+
 				cout << "\nBootstrapping START!!!" << endl;
 				start();
 				pool.exec_index(params.cnum, [&](long i) {
@@ -204,7 +204,7 @@ namespace SecureML
 					encVData[i].n = params.batch;
 					scheme.bootstrapAndEqual(encVData[i], params.logq, params.logQBoot, params.logT, params.logI);
 					encVData[i].n = params.slots;
-				
+
 				});
 				end(); print("bootstrapping");
 				cout << "Bootstrapping END!!!" << endl;
