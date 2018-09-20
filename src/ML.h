@@ -9,16 +9,11 @@
 #include <string>
 
 #include "HEAAN.h"
-//#include "Scheme.h"
 #include "Params.h"
-//#include "Ciphertext.h"
-//#include "SerializationUtils.h"
-
 #include "functions.h"
 
 using namespace std;
 
-//static double degree3[4] = {0.5,-0.25,0.0,-0.0208}; //> ~ 1 / (1 + exp(x)) (Talyor Expansion)
 //static double degree3[4] = {0.5,-0.15012,0.0,0.001593}; //> ~ 1 / (1 + exp(x)) (LSFitting with bnd [-8,8])
 static double degree3[4] = {0.5,-0.0843,0.0,0.0002}; //> ~ 1/ (1 + exp(x)) (LSFitting with bnd [-16,16])
 
@@ -80,6 +75,9 @@ namespace SecureML {
 
 		// Decrypt encrypted wData //
 		void DecryptwData(double* wData, Ciphertext* encWData, long factorNum);
+
+		// Decrypt and save //
+		void DecryptwDataAndSave(string fileName, Ciphertext* encWData, long factorNum);
 
 		// Decrypt and print //
 		void DecryptAndPrint(string msg, Ciphertext cipher);

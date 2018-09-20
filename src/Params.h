@@ -50,7 +50,6 @@ namespace SecureML {
 		Params(long factorNum, long sampleNum, long iterNum, double alpha, long numThread)
 		{
 			this->factorNum = 1 << (long)ceil(log2(factorNum));
-			//this->sampleNum = 1 << (long)ceil(log2(sampleNum));
 			this->iterNum = iterNum;
 			this->numThread = numThread;
 			this->alpha = alpha;
@@ -69,7 +68,7 @@ namespace SecureML {
 
 			// Compute logQBoot for bootstrapping //
 			logq = wBits + lBits;
-			logI = 4; logT = 4;
+			logI = 4; logT = 3;
 			long bitForBoot = 16 + logT + logI + (logI + logT + 6) * (logq + logI);
 			logQBoot = logQ + bitForBoot;
 

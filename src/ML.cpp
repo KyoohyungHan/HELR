@@ -39,22 +39,22 @@ namespace SecureML
 	/****************************************************************************/
 	// Sigmoid consumes (2 * wBits)-bit of ciphertext modulus //
 	void ML::Sigmoid(Ciphertext* encGrad, Ciphertext* encZData, Ciphertext& encIP, double gamma) {
-		Ciphertext encIPsqr = scheme.square(encIP); //> logp: 2 * wBits
+		Ciphertext encIPsqr = scheme.square(encIP);
 		scheme.addConstAndEqual(encIPsqr, degree3[1] / degree3[3], 2 * params.wBits);
-		scheme.reScaleByAndEqual(encIPsqr, params.wBits); //> logp: wBits, bitDown: wBits
+		scheme.reScaleByAndEqual(encIPsqr, params.wBits);
 		////////////////////////////////
 		pool.exec_index(params.cnum, [&](long i) {
-			encGrad[i] = scheme.multByConst(encZData[i], (gamma * degree3[3]), 2 * params.wBits); //> logq: logQ + wBits
-			scheme.reScaleByAndEqual(encGrad[i], 2 * params.wBits); //> logp: wBits, logq: logQ - pBits
+			encGrad[i] = scheme.multByConst(encZData[i], (gamma * degree3[3]), 2 * params.wBits);
+			scheme.reScaleByAndEqual(encGrad[i], 2 * params.wBits);
 			scheme.modDownToAndEqual(encGrad[i], encIP.logq);
-			scheme.multAndEqual(encGrad[i], encIP); //> logp: 2 * wBits
-			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> logp: wBits, bitDown: wBits
-			scheme.multAndEqual(encGrad[i], encIPsqr); //> logp: 2 * wBits
-			scheme.reScaleByAndEqual(encGrad[i], params.wBits); //> logp: wBits, bitDown: 2 * wBits
-			Ciphertext tmp = scheme.multByConst(encZData[i], (gamma * degree3[0]), 2 * params.wBits); //> 2 * wBits
-			scheme.reScaleByAndEqual(tmp, 2 * params.wBits); //> logp: wBits, logq: logQ - wBits
+			scheme.multAndEqual(encGrad[i], encIP);
+			scheme.reScaleByAndEqual(encGrad[i], params.wBits);
+			scheme.multAndEqual(encGrad[i], encIPsqr);
+			scheme.reScaleByAndEqual(encGrad[i], params.wBits);
+			Ciphertext tmp = scheme.multByConst(encZData[i], (gamma * degree3[0]), 2 * params.wBits);
+			scheme.reScaleByAndEqual(tmp, 2 * params.wBits);
 			scheme.modDownToAndEqual(tmp, encGrad[i].logq);
-			scheme.addAndEqual(encGrad[i], tmp); //> bitDown: 2 * wBits
+			scheme.addAndEqual(encGrad[i], tmp);
 			for (long l = params.bBits; l < params.sBits; ++l) {
 				Ciphertext tmp = scheme.leftRotateFast(encGrad[i], 1 << l);
 				scheme.addAndEqual(encGrad[i], tmp);
@@ -70,8 +70,8 @@ namespace SecureML
 	/****************************************************************************/
 	void ML::plainSigmoid(double* grad, double** zData, double* ip, double gamma, long factorNum, long sampleNum) {
 		for(long i = 0; i < sampleNum; i++) {
-			//double tmp = (degree3[0] + degree3[1] * ip[i] + degree3[3] * pow(ip[i], 3)); //> ~ 1 / (1 + exp(x))
-			double tmp = (1. / (1. + exp(ip[i])));
+			double tmp = (degree3[0] + degree3[1] * ip[i] + degree3[3] * pow(ip[i], 3)); //> ~ 1 / (1 + exp(x))
+			//double tmp = (1. / (1. + exp(ip[i])));
 			tmp *= gamma;
 			for(long j = 0; j < factorNum; j++) {
 				grad[j] += tmp * zData[i][j];
@@ -97,7 +97,8 @@ namespace SecureML
 							}
 						}
 						Ciphertext encZData = scheme.encrypt(pzData, params.slots, params.wBits, params.logQ + params.wBits);
-						SerializationUtils::writeCiphertext(encZData, "../encData/Ciphertext_" + std::to_string(i + 1) + "_" + std::to_string(j + 1) + ".txt");
+						SerializationUtils::writeCiphertext(&encZData, "../encData/Ciphertext_" + std::to_string(i + 1) + "_" + std::to_string(j + 1) + ".txt");
+						encZData.kill();
 						delete[] pzData;
 					}
 				}
@@ -105,16 +106,16 @@ namespace SecureML
 	}
 	/****************************************************************************/
 	void ML::Update(Ciphertext* encWData, Ciphertext* encVData, double gamma, double eta, long blockID) {
-		// Read txt file and convert it to Ciphertext class //
+		// Read Ciphertext from txt file //
 		Ciphertext* encZData = new Ciphertext[params.cnum]; //> wBits
 		for(long i = 0; i < params.cnum; i++) {
-			encZData[i] = SerializationUtils::readCiphertext("../encData/Ciphertext_" + std::to_string(blockID + 1) + "_" + std::to_string(i + 1) + ".txt");
+			encZData[i] = *SerializationUtils::readCiphertext("../encData/Ciphertext_" + std::to_string(blockID + 1) + "_" + std::to_string(i + 1) + ".txt");
 		}
 		// Update encWData and encVData (based on encZData) //
 		Ciphertext* encGrad = new Ciphertext[params.cnum];
 		Ciphertext encIP = InnerProduct(encZData, encVData); //> bitDown: wBits + pBits
 		Sigmoid(encGrad, encZData, encIP, gamma); //> bitDown: 3 * wBits + 2 * pBits
-		// Update encWData and encVData //
+		// Update encWData and encVData (multi-threading) //
 		pool.exec_index(params.cnum, [&](long i) {
 			Ciphertext tmp1 = scheme.modDownTo(encVData[i], encGrad[i].logq);
 			scheme.addAndEqual(tmp1, encGrad[i]);
@@ -126,6 +127,8 @@ namespace SecureML
 			scheme.addAndEqual(encVData[i], tmp2);
 			encWData[i] = tmp1;
 			scheme.modDownToAndEqual(encWData[i], encVData[i].logq);
+			tmp1.kill();
+			tmp2.kill();
 		});
 		delete[] encZData;
 		delete[] encGrad;
@@ -157,13 +160,11 @@ namespace SecureML
 		long blockNum = params.sampleNum / params.blockSize; 
 
 		double* dwData = new double[factorNum]();
-
-		ofstream auroc_enc("auroc_enc_" + to_string(params.numThread) + ".csv");
-		ofstream auroc_ptxt("auroc_ptxt_" + to_string(params.numThread) + ".csv");
-		ofstream accuracy_enc("accuracy_enc_" + to_string(params.numThread) + ".csv");
-		ofstream accuracy_ptxt("accuracy_ptxt_" + to_string(params.numThread) + ".csv");
-
 		double auc, accuracy;
+
+		long factorNumTest, sampleNumTest;
+		double** zDataTest = zDataFromFile(params.path_to_test_file, factorNumTest, sampleNumTest, params.isfirst);
+		normalizeZData(zDataTest, factorNumTest, sampleNumTest);
 
 		for(long iter = 0; iter < params.iterNum; iter++) {
 			///////////////////////////////////////////////////////
@@ -177,19 +178,15 @@ namespace SecureML
 
 			cout << "** un-encrypted" << endl;
 			plainUpdate(wData, vData, zData, gamma, eta, factorNum, sampleNum, blockID);
-			SecureML::testAUROC(auc, accuracy, params.path_to_test_file, dwData, params.isfirst);
-			accuracy_ptxt << iter + 1 << ", " << accuracy << endl;
-			auroc_ptxt << iter + 1 << ", " << auc << endl;
-
+			SecureML::testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, dwData, params.isfirst);
+			
 			cout << "** encrypted" << endl;
 			start();
 			Update(encWData, encVData, gamma, eta, blockID);
 			end(); print("update");
 
 			DecryptwData(dwData, encWData, factorNum);
-			SecureML::testAUROC(auc, accuracy, params.path_to_test_file, dwData, params.isfirst);
-			accuracy_enc << iter + 1 << ", " << accuracy << endl;
-			auroc_enc << iter + 1 << ", " << auc << endl;			
+			SecureML::testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, dwData, params.isfirst);
 			
 			alpha0 = alpha1;
 			alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
@@ -212,13 +209,9 @@ namespace SecureML
 				end(); print("bootstrapping");
 				cout << "Bootstrapping END!!!" << endl;
 				DecryptwData(dwData, encWData, factorNum);
-				SecureML::testAUROC(auc, accuracy, params.path_to_test_file, dwData, params.isfirst);
+				SecureML::testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, dwData, params.isfirst);
 			}
 		}
-		auroc_enc.close();
-		auroc_ptxt.close();
-		accuracy_enc.close();
-		accuracy_ptxt.close();
 		delete[] dwData;
 		delete[] vData;
 		delete[] encVData;
@@ -267,34 +260,29 @@ namespace SecureML
 
 		gamma = params.alpha / params.blockSize;
 		long blockNum = params.sampleNum / params.blockSize; 
-
-		//ofstream acc("accuracy" + to_string(params.numThread) + "_ptxt_deg3.csv");
-		ofstream acc("accuracy" + to_string(params.numThread) + "_ptxt_sigmoid.csv");
-
 		double auc, accuracy;
 
+		long factorNumTest, sampleNumTest;
+		double** zDataTest = zDataFromFile(params.path_to_test_file, factorNumTest, sampleNumTest, params.isfirst);
+		normalizeZData(zDataTest, factorNumTest, sampleNumTest);
+
+		srand(time(NULL));
 		for(long iter = 0; iter < params.iterNum; iter++) {
 			///////////////////////////////////////////////////////
 			cout << endl;
 			cout << iter + 1 << "-th iteration started (plain)!!!" << endl;
 			///////////////////////////////////////////////////////
-
 			eta = (1 - alpha0) / alpha1;
-
-			srand(iter);
-
+			///////////////////////////////////////////////////////
 			start();
 			plainUpdate(wData, vData, zData, gamma, eta, factorNum, sampleNum, rand() % blockNum);
 			end(); print("plain update");
-
-			testAUROC(auc, accuracy, params.path_to_test_file, wData, params.isfirst);
-
-			acc << iter + 1 << ", " << accuracy << endl;
-
+			///////////////////////////////////////////////////////
+			testAUROC(auc, accuracy, zDataTest, factorNumTest, sampleNumTest, wData, params.isfirst);
+			///////////////////////////////////////////////////////
 			alpha0 = alpha1;
 			alpha1 = (1. + sqrt(1. + 4.0 * alpha0 * alpha0)) / 2.0;
 		}
-		acc.close();
 	}
 	/****************************************************************************/
 	void ML::DecryptwData(double* wData, Ciphertext* encWData, long factorNum) {
@@ -308,13 +296,33 @@ namespace SecureML
 		}
 	}
 	/****************************************************************************/
+	void ML::DecryptwDataAndSave(string fileName, Ciphertext* encWData, long factorNum) {
+		ofstream file(fileName);
+		double* wData = new double[factorNum]();
+		for (long i = 0; i < params.cnum; ++i) {
+			complex<double>* dcw = scheme.decrypt(sk, encWData[i]);
+			for (long j = 0; j < params.batch; ++j) {
+				if(params.batch * i + j < factorNum)
+					wData[params.batch * i + j] = dcw[j].real();
+			}
+			delete[] dcw;
+		}
+		for(long i = 0; i < factorNum; i++) {
+			file << i + 1 << ", " << wData[i] << endl;
+		}
+		delete[] wData;
+		return;
+	}
+	/****************************************************************************/
 	void ML::DecryptAndPrint(string msg, Ciphertext cipher) {
 		complex<double>* dp = scheme.decrypt(sk, cipher);
-		cout << msg + " = ";
+		cout << msg + " = [";
 		for(long i = 0; i < 10; i++) {
-			cout << dp[i].real() << ",";
+			cout << dp[i].real() << ", ";
+			if(i == 9) cout << dp[i].real() << "]\n";
 		}
-		cout << endl;
+		delete[] dp;
+		return;
 	}
 }
 

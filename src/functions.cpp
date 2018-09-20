@@ -39,6 +39,7 @@ namespace SecureML
 		} else {
 			cout << "Error: cannot read file" << endl;
 		}
+		openFile.close();
 		double** zData = new double*[sampleDim];
 		if(isfirst) {
 			for(long j = 0; j < sampleDim; ++j) {
@@ -77,8 +78,7 @@ namespace SecureML
 	}
 	/****************************************************************************/
 	void shuffleZData(double** zData, long factorDim, long sampleDim) {
-		//srand(time(NULL));
-		srand(1111); //> fix seed for fair comparison
+		srand(time(NULL));
 		double* tmp = new double[factorDim];
 		for (long i = 0; i < sampleDim; ++i) {
 			long idx = i + rand() / (RAND_MAX / (sampleDim - i) + 1);
@@ -89,64 +89,40 @@ namespace SecureML
 		delete[] tmp;
 	}
 	/****************************************************************************/
-	void testProbAndYval(string path, double* wData, bool isfirst) {
-		long sampleNum;
-		long factorNum;
-		double** zData = zDataFromFile(path, factorNum, sampleNum, isfirst);
-		double* yval = new double[sampleNum]();
-		double* prob = new double[sampleNum]();
-		for(long i = 0; i < sampleNum; i++) {
-			if(zData[i][0] > 0) yval[i] = 1;
-			else yval[i] = 0;
-			double sum = zData[i][0] * innerproduct(wData, zData[i], factorNum);
-			prob[i] = 1. / (1. + exp(-sum));
-		}
-		ofstream openFile("testResult.csv");
-		openFile << "Prob, Y" << endl;
-		for(long i = 0; i < sampleNum; i++) {
-			openFile << prob[i] << ", " << yval[i] << endl;
-		}
-		openFile.close();
-		delete[] yval;
-		delete[] prob;
-	}
-	/****************************************************************************/
-	void testAUROC(double& auc, double& accuracy, string path, double* wData, bool isfirst) {
-
-		long sampleNum;
-		long factorNum;
-		double** zData = zDataFromFile(path, factorNum, sampleNum, isfirst);
-		normalizeZData(zData, factorNum, sampleNum);
+	void testAUROC(double& auc, double& accuracy, double** zData, long factorDim,
+					long sampleDim, double* wData, bool isfirst) {
 		
-		cout << "wData = [";
+		// print first 10 element of wData		
+		cout << "\t - wData = [";
 		for(long i = 0; i < 10; i++) {
 			cout << wData[i] << ',';
 			if(i == 9) cout << wData[i] << "]" << endl;
 		}
 
+		// compute AUROC and accuracy of this model
 		long TN = 0, FP = 0;
 		vector<double> thetaTN(0);
 		vector<double> thetaFP(0);
 
-	   	for(long i = 0; i < sampleNum; ++i){
+	   	for(long i = 0; i < sampleDim; ++i){
 	    	if(zData[i][0] > 0)
 			{
-	            if(innerproduct(zData[i], wData, factorNum) < 0){
+	            if(innerproduct(zData[i], wData, factorDim) < 0){
 					TN++;
 				}
-	            thetaTN.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
+	            thetaTN.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorDim - 1));
 	        } else {
-		        if(innerproduct(zData[i], wData, factorNum) < 0){
+		        if(innerproduct(zData[i], wData, factorDim) < 0){
 					FP++;
 				}
-	        	thetaFP.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorNum - 1));
+	        	thetaFP.push_back(zData[i][0] * innerproduct(zData[i] + 1, wData + 1, factorDim - 1));
 	        }
 	    }
-		accuracy = (double)(sampleNum - TN - FP) / sampleNum;
-		cout << "Accuracy: " << accuracy << endl;
+		accuracy = (double)(sampleDim - TN - FP) / sampleDim;
+		cout << "\t - Accuracy: " << accuracy << endl;
 		auc = 0.0;
 	    if(thetaFP.size() == 0 || thetaTN.size() == 0) {
-	        cout << "n_test_yi = 0 : cannot compute AUC" << endl;
+	        cout << "\t - n_test_yi = 0 : cannot compute AUC" << endl;
 	    } else {
 	    	for(long i = 0; i < thetaTN.size(); ++i){
 	        	for(long j = 0; j < thetaFP.size(); ++j){
@@ -154,10 +130,10 @@ namespace SecureML
 	        	}
 	    	}
 	    	auc /= thetaTN.size() * thetaFP.size();
-	    	cout << "AUC: " << auc << endl;
+	    	cout << "\t - AUC: " << auc << endl;
 	    }
-		vector<double>().swap(thetaTN);
-		vector<double>().swap(thetaFP);
+		vector<double>().swap(thetaTN); ///< to solve memory leakage problem
+		vector<double>().swap(thetaFP); ///< to solve memory leakage problem
 	}
 	/****************************************************************************/
 }

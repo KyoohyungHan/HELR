@@ -12,17 +12,15 @@ using namespace std;
 
 namespace SecureML {
 
-	double innerproduct(double* vec1, double* vec2, long size);
-
 	double** zDataFromFile(string path, long& factorDim, long& sampleDim, bool isfirst = true);
-
+	
 	void shuffleZData(double** zData, long factorDim, long sampleDim);
 
-	void normalizeZData(double** zData, long factorDim, long sampleDim);
+	void normalizeZData(double** zData, long factorDim, long sampleDim);	
+	
+	double innerproduct(double* vec1, double* vec2, long size);
 
-	void testProbAndYval(string path, double* wData, bool isfirst = true);
-
-	void testAUROC(double& auc, double& accuracy, string path, double* wData, bool isfirst = true);
+	void testAUROC(double& auc, double& accuracy, double** zData, long factorDim, long sampleDim, double* wData, bool isfirst = true);
 
 }
 

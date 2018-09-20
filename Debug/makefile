@@ -38,10 +38,10 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: SecureML
+all: HELR
 
 # Tool invocations
-SecureML: $(OBJS) $(USER_OBJS)
+HELR: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross G++ Linker'
 	g++ -L/Users/kay/git/HEAAN/HEAAN/lib -o "HELR" $(OBJS) $(USER_OBJS) $(LIBS) -pthread -std=c++11

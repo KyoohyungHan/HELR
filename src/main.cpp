@@ -40,15 +40,15 @@ void test(string file, string file_test, bool isFirst, long numThread, bool isEn
 	SecureML::Params params(factorNum, sampleNum, 32, 1.0, pool.NumThreads());
 	params.path_to_file = file;
 	params.path_to_test_file = file_test;
-	params.isfirst = isFirst; ///< Y is at the first column of the data
+	params.isfirst = isFirst; ///< Y is at the first column of the data?
 
-	/* Key Generation for HEAANBOOT library
+	/* Key Generation for HEAAN library
 	 * If params.iterNum is larger than params.iterNumPerBoot, this will generate public key for bootstrapping
 	 * */
 	START();
 	Ring ring(params.logN, params.logQBoot);
 	SecretKey sk(ring);
-	Scheme scheme(sk, ring);
+	Scheme scheme(sk, ring, true); ///< save all public keys in /serkey folder
 	if(isEncrypted) {
 		scheme.addLeftRotKeys(sk);
 		scheme.addRightRotKeys(sk);
@@ -78,25 +78,19 @@ void test(string file, string file_test, bool isFirst, long numThread, bool isEn
 	END(); PRINTTIME("\n - Training");
 
 	if(isEncrypted) {
-		/* Decrypt encWData using secretkey sk
+		/* Decrypt encWData using secretkey sk and save dwData in dwData.csv
 		 * */
-		double* dwData = new double[factorNum]();
-		secureML.DecryptwData(dwData, encWData, factorNum);
-		
-		/* Print Data Value / Pr[Y=1|X=x] for given test file using the dwData
-	 	* */
-		SecureML::testProbAndYval(params.path_to_test_file, dwData, params.isfirst);
-		delete[] dwData;
+		secureML.DecryptwDataAndSave("dwData.csv", encWData, factorNum);
 	}
 	delete[] pwData;
 	delete[] encWData;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
 
-	string file1("../data/MNIST_train.txt"); //> file for training
-	string file2("../data/MNIST_test.txt"); //> file for testing
-	bool isFirst = true; //> Y val is at the first column?
+	string file1("../data/" + string(argv[1])); ///< file name for training
+	string file2("../data/" + string(argv[2])); ///< file name for testing
+	bool isFirst = atoi(argv[3]); //> the target value is at the first column or not?
 
 	// Un-encrypted Logistic Regression //
 
