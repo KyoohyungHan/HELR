@@ -91,35 +91,19 @@ int main(int argc, char* argv[]) {
 	string file1("../data/" + string(argv[1])); ///< file name for training
 	string file2("../data/" + string(argv[2])); ///< file name for testing
 	bool isFirst = atoi(argv[3]); //> the target value is at the first column or not?
+	bool isEncrypted = atoi(argv[4]); ///> logistic regression for encrypted state?
+	long numThread = atoi(argv[5]); ///> number of threads in multi-threading
 
-	// Un-encrypted Logistic Regression //
-
-	// cout << "!!! Test for Thread = 1 !!!" << endl;
-	// test(file, isFirst, 1, false);
-
-	// cout << "!!! Test for Thread = 2 !!!" << endl;
-	// test(file, isFirst, 2, false);
-
-	// cout << "!!! Test for Thread = 4 !!!" << endl;
-	// test(file, isFirst, 4, false);
-
-	// cout << "!!! Test for Thread = 8 !!!" << endl;
-	// test(file1, file2, isFirst, 8, false);
-
-	// Encrypted Logistic Regression //
-
-	// cout << "!!! Test for Thread = 1 !!!" << endl;
-	// test(file, isFirst, 1, true);
-
-	cout << "!!! Test for Thread = 2 !!!" << endl;
-	test(file1, file2, isFirst, 2, true);
-
-	//cout << "!!! Test for Thread = 4 !!!" << endl;
-	//test(file1, file2, isFirst, 4, true);
-
-	// cout << "!!! Test for Thread = 8 !!!" << endl;
-	// test(file1, file2, isFirst, 8, true);
-
+	if(isEncrypted) {
+		cout << "HELR Test with thread " << numThread << endl;
+		cout << "Training Data = " << file1 << endl;
+		cout << "Testing Data = " << file2 << endl;
+	} else {
+		cout << "LR Test with thread " << numThread << endl;
+		cout << "Training Data = " << file1 << endl;
+		cout << "Testing Data = " << file2 << endl;
+	}
+	test(file1, file2, isFirst, numThread, isEncrypted);
 	return 0;
 }
 
