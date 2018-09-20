@@ -10,16 +10,29 @@ The command to run HELR is follow:
 
   ./HELR file_name_for_train file_name_for_test isTargetFirst isEncrypted numThread
 
-- Here files for train and test should be in data folder with csv format (distinguished by comma)
-- isTargetFirst: the target value (Y_i) is at the first column or last
+- Here files for train and test should be in data folder with csv format (distinguished by comma).
+- isTargetFirst: the target value (Y_i) is at the first column or last.
 - isEncrypted: usually "1", but you can use "0" if you want to check plaintext logistic regression (with approximate signmoid).
-- numThread: the number of thread for multi-threading
+- numThread: the number of thread for multi-threading.
+- If you want to change iteration number and leraning rate, see main.cpp file.
 
 Notice that you might need to change the path to the NTL library and HEAAN library (at makefile and src/subdir.mk).
 
 NTL lib: http://www.shoup.net/ntl/
 
 HEAAN lib: https://github.com/kimandrik/HEAAN (commit: c2f08aa6163d7ae193f54419559d8decc6f05ef4)
+
+## Result (with MNIST data)
+
+We use compressed MNIST data (original data has size 28 by 28 while our data is 14 by 14). The method for compression is computing mean of 4 element in 2 by 2. The command run same experiment is "./HELR MNIST_train.txt MNIST_test.txt 1 1 8" (with 32 iteration and learning rate 1.0).
+
+| Training Time  | AUROC | Accuracy |
+| -------------- | ------------- | -----|
+|    68.33 min   | 0.99 | 96.2% |
+
+#### Testing PC information
+- 32 number of Intel(R) Xeon(R) CPU E5-2620 v4 2.10 GHz (each CPU has 2 cores, we used 8 thread)
+- 64GB RAM (we use about 10GB RAM in this experiment)
 
 ## Example
 
