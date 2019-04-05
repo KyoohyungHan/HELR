@@ -40,7 +40,6 @@ We use compressed MNIST data (original data has size 28 by 28 while our data is 
 
 The command run same experiment is "./HELR MIMIC_train.csv MIMIC_test.csv 1 1 48 1.0 8".
 
-(will be updated)
 | Training Time  | AUROC | Accuracy |
 | -------------- | ------------- | -----|
 |    ? min   | ? | ?% |
