@@ -1,4 +1,4 @@
-# HEML: Homomorphic Logistic Regression on Encrypted Data
+# HELR: Homomorphic Logistic Regression on Encrypted Data
 
 ## How to run this program?
 
