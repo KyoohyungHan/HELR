@@ -44,13 +44,13 @@ all: HELR
 HELR: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross G++ Linker'
-	g++ -L/Users/kay/git/HEAAN/HEAAN/lib -o "HELR" $(OBJS) $(USER_OBJS) $(LIBS) -pthread -std=c++11
+	g++ -L ../HEAAN/HEAAN/lib -o "HELR" $(OBJS) $(USER_OBJS) $(LIBS) -pthread -std=c++11
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(CC_DEPS)$(C++_DEPS)$(EXECUTABLES)$(OBJS)$(C_UPPER_DEPS)$(CXX_DEPS)$(C_DEPS)$(CPP_DEPS) SecureML
+	-$(RM) $(CC_DEPS)$(C++_DEPS)$(EXECUTABLES)$(OBJS)$(C_UPPER_DEPS)$(CXX_DEPS)$(C_DEPS)$(CPP_DEPS) HELR
 	-@echo ' '
 
 .PHONY: all clean dependents

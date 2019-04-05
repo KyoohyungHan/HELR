@@ -19,7 +19,7 @@ chrono::high_resolution_clock::time_point t1, t2;
 using namespace std;
 using namespace NTL;
 
-void test(string file, string file_test, bool isFirst, long numThread, bool isEncrypted) {
+void test(string file, string file_test, bool isFirst, long numIter, long numThread, bool isEncrypted) {
 
 	/* Construct BasicThreadPool and set the number of thread
 	 * */
@@ -37,7 +37,7 @@ void test(string file, string file_test, bool isFirst, long numThread, bool isEn
 	 * alpha : learning rate (0.001 to 1.0 values are used in general
 	 * iterNum does not need to be large because we use mini-batch technique + optimized gradient decent
 	 */
-	SecureML::Params params(factorNum, sampleNum, 32, 1.0, pool.NumThreads());
+	SecureML::Params params(factorNum, sampleNum, numIter, 0.1, pool.NumThreads());
 	params.path_to_file = file;
 	params.path_to_test_file = file_test;
 	params.isfirst = isFirst; ///< Y is at the first column of the data?
@@ -88,11 +88,14 @@ void test(string file, string file_test, bool isFirst, long numThread, bool isEn
 
 int main(int argc, char* argv[]) {
 
+	cout << NTL_SP_BOUND << endl;
+
 	string file1("../data/" + string(argv[1])); ///< file name for training
 	string file2("../data/" + string(argv[2])); ///< file name for testing
 	bool isFirst = atoi(argv[3]); //> the target value is at the first column or not?
 	bool isEncrypted = atoi(argv[4]); ///> logistic regression for encrypted state?
-	long numThread = atoi(argv[5]); ///> number of threads in multi-threading
+    long numIter = atoi(argv[5]); ///> number of iteration in GD algorithm
+	long numThread = atoi(argv[6]); ///> number of threads in multi-threading
 
 	if(isEncrypted) {
 		cout << "HELR Test with thread " << numThread << endl;
@@ -103,7 +106,7 @@ int main(int argc, char* argv[]) {
 		cout << "Training Data = " << file1 << endl;
 		cout << "Testing Data = " << file2 << endl;
 	}
-	test(file1, file2, isFirst, numThread, isEncrypted);
+	test(file1, file2, isFirst, numIter, numThread, isEncrypted);
 	return 0;
 }
 
