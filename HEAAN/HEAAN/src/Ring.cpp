@@ -230,7 +230,7 @@ void Ring::addBootContext(long logSlots, long logp) {
 						pvec[jdx] = EvaluatorUtils::scaleUpToZZ(pvals[i].imag(), logp);
 					}
 					bndvec[pos] = maxBits(pvec, N);
-					np = ceil((bndvec[pos] + logQ + 2 * logN + 2)/PRIME_BIT_SIZE);
+					np = ceil((bndvec[pos] + logQ + 2 * logN + 2)/(PRIME_BIT_SIZE-1));
 					rpvec[pos] = toNTT(pvec, np);
 					for (i = 0; i < N; ++i) {
 						pvec[i] = ZZ::zero();
@@ -249,7 +249,7 @@ void Ring::addBootContext(long logSlots, long logp) {
 				pvec[jdx] = EvaluatorUtils::scaleUpToZZ(pvals[i].imag(), logp);
 			}
 			bnd1 = maxBits(pvec, N);
-			np = ceil((bnd1 + logQ + 2 * logN + 2)/PRIME_BIT_SIZE);
+			np = ceil((bnd1 + logQ + 2 * logN + 2)/(PRIME_BIT_SIZE-1));
 			rp1 = toNTT(pvec, np);
 			for (i = 0; i < N; ++i) {
 				pvec[i] = ZZ::zero();
@@ -266,7 +266,7 @@ void Ring::addBootContext(long logSlots, long logp) {
 				pvec[jdx] = EvaluatorUtils::scaleUpToZZ(pvals[i].imag(), logp);
 			}
 			bnd2 = maxBits(pvec, N);
-			np = ceil((bnd2 + logQ + 2 * logN + 2)/PRIME_BIT_SIZE);
+			np = ceil((bnd2 + logQ + 2 * logN + 2)/(PRIME_BIT_SIZE-1));
 			rp2 = toNTT(pvec, np);
 			for (i = 0; i < N; ++i) {
 				pvec[i] = ZZ::zero();
@@ -290,7 +290,7 @@ void Ring::addBootContext(long logSlots, long logp) {
 						pvec[jdx] = EvaluatorUtils::scaleUpToZZ(pvals[i].imag(), logp);
 					}
 					bndvec[pos] = maxBits(pvec, N);
-					np = ceil((bndvec[pos] + logQ + 2 * logN + 2)/PRIME_BIT_SIZE);
+					np = ceil((bndvec[pos] + logQ + 2 * logN + 2)/(PRIME_BIT_SIZE-1));
 					rpvec[pos] = toNTT(pvec, np);
 					for (i = 0; i < N; ++i) {
 						pvec[i] = ZZ::zero();
@@ -317,7 +317,7 @@ void Ring::addBootContext(long logSlots, long logp) {
 					pvec[jdx] = EvaluatorUtils::scaleUpToZZ(pvals[i].imag(), logp);
 				}
 				bndvecInv[pos] = maxBits(pvec, N);
-				np = ceil((bndvecInv[pos] + logQ + 2 * logN + 2)/PRIME_BIT_SIZE);
+				np = ceil((bndvecInv[pos] + logQ + 2 * logN + 2)/(PRIME_BIT_SIZE-1));
 				rpvecInv[pos] = toNTT(pvec, np);
 				for (i = 0; i < N; ++i) {
 					pvec[i] = ZZ::zero();
