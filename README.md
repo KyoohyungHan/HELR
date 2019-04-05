@@ -28,25 +28,13 @@ HEAAN lib: https://github.com/kimandrik/HEAAN (commit: c2f08aa6163d7ae193f544195
 
 We use compressed MNIST data (original data has size 28 by 28 while our data is 14 by 14). The method for compression is computing mean of 4 element in 2 by 2. The command run same experiment is "./HELR MNIST_train.txt MNIST_test.txt 1 1 32 1.0 8".
 
-| Training Time  | AUROC | Accuracy |
-| -------------- | ------------- | -----|
-|    68.33 min   | 0.99 | 96.2% |
-
-#### Testing PC information
+#### Performance on Testing PC
 - 32 number of Intel(R) Xeon(R) CPU E5-2620 v4 2.10 GHz (each CPU has 2 cores, we used 8 thread)
 - 64GB RAM (we use about 10GB RAM in this experiment)
 
-## Result (with MIMIC data)
-
-The command run same experiment is "./HELR MIMIC_train.csv MIMIC_test.csv 1 1 48 1.0 8".
-
 | Training Time  | AUROC | Accuracy |
 | -------------- | ------------- | -----|
-|    ? min   | ? | ?% |
-
-#### Testing PC information
-- 19 number of Intel(R) Core(TM) i9-9820X CPU @ 3.30GHz (we used 16 thread)
-- 64GB RAM (we use about 10GB RAM in this experiment)
+|    68.33 min   | 0.99 | 96.2% |
 
 ## Example
 
